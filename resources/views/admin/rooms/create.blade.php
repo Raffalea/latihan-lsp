@@ -11,7 +11,7 @@
                 extend: {
                     colors: {
                         gold: { 400: '#fbbf24', 500: '#f59e0b', 600: '#d97706' },
-                        dark: { 900: '#0f1115', 800: '#1a1d23', 700: '#2d3139' }
+                        dark: { 950: '#0a0b0d', 900: '#0f1115', 800: '#1a1d23', 700: '#2d3139' }
                     }
                 }
             }
@@ -21,6 +21,9 @@
     <style>
         body { font-family: 'Inter', sans-serif; }
         .luxury-title { font-family: 'Playfair Display', serif; }
+        /* Menghilangkan spin button pada number input */
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     </style>
 </head>
 <body class="bg-dark-900 text-white min-h-screen pb-20">
@@ -71,8 +74,11 @@
                     <label class="block text-[10px] font-black text-zinc-500 mb-3 uppercase tracking-[0.2em]">Rate per Night (IDR)</label>
                     <div class="relative">
                         <span class="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-600 font-bold text-sm">Rp</span>
-                        <input type="number" name="price_per_night" required placeholder="1.500.000"
+
+                        <input type="text" id="price_format" placeholder="1.500.000" required
                             class="w-full pl-14 pr-6 py-4 rounded-2xl bg-dark-900 border border-zinc-800 text-gold-500 font-bold text-lg focus:ring-1 focus:ring-gold-500 outline-none transition shadow-inner">
+
+                        <input type="hidden" name="price_per_night" id="price_raw">
                     </div>
                 </div>
 
@@ -93,6 +99,38 @@
             </form>
         </div>
     </div>
+
+    <script>
+        const inputFormat = document.getElementById('price_format');
+        const inputRaw = document.getElementById('price_raw');
+
+        inputFormat.addEventListener('keyup', function(e) {
+            // Hilangkan semua karakter kecuali angka
+            let number_string = this.value.replace(/[^,\d]/g, '').toString();
+            let split = number_string.split(',');
+            let sisa  = split[0].length % 3;
+            let rupiah = split[0].substr(0, sisa);
+            let ribuan = split[0].substr(sisa).match(/\d{3}/gi);
+
+            if (ribuan) {
+                let separator = sisa ? '.' : '';
+                rupiah += separator + ribuan.join('.');
+            }
+
+            rupiah = split[1] != undefined ? rupiah + ',' + split[1] : rupiah;
+
+            // Tampilkan hasil format ke user
+            this.value = rupiah;
+
+            // Masukkan angka murni ke input hidden untuk dikirim ke database
+            inputRaw.value = number_string.replace(/\./g, '');
+        });
+
+        // Pastikan saat reset, input hidden juga kosong
+        document.querySelector('button[type="reset"]').addEventListener('click', () => {
+            inputRaw.value = '';
+        });
+    </script>
 
 </body>
 </html>

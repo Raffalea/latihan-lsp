@@ -54,23 +54,43 @@ class ReservationController extends Controller
             'check_out' => 'required|date|after:check_in',
         ]);
 
-        $room = Room::findOrFail($request->room_id);
+        $room_id = $request->room_id;
         $checkIn = Carbon::parse($request->check_in);
         $checkOut = Carbon::parse($request->check_out);
 
-        // Hitung durasi minimal 1 hari jika tanggal sama/error
+        // --- LOGIKA CEK KETERSEDIAAN (OVERLAP CHECK) ---
+        $isBooked = Reservation::where('room_id', $room_id)
+            ->where('status', '!=', 'cancelled') // Abaikan pesanan yang sudah batal
+            ->where(function ($query) use ($checkIn, $checkOut) {
+                $query->whereBetween('check_in', [$checkIn, $checkOut])
+                    ->orWhereBetween('check_out', [$checkIn, $checkOut])
+                    ->orWhere(function ($q) use ($checkIn, $checkOut) {
+                        $q->where('check_in', '<=', $checkIn)
+                            ->where('check_out', '>=', $checkOut);
+                    });
+            })
+            ->exists();
+
+        if ($isBooked) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Kamar sudah dipesan pada tanggal tersebut. Silahkan pilih tanggal lain.');
+        }
+        // --- AKHIR LOGIKA CEK KETERSEDIAAN ---
+
+        $room = Room::findOrFail($room_id);
         $durasi = $checkIn->diffInDays($checkOut);
         if ($durasi == 0) $durasi = 1;
 
         Reservation::create([
             'user_id' => Auth::id(),
-            'room_id' => $request->room_id,
+            'room_id' => $room_id,
             'check_in' => $request->check_in,
             'check_out' => $request->check_out,
             'total_price' => $durasi * $room->price_per_night,
             'status' => 'pending'
         ]);
 
-        return redirect()->route('customer.history')->with('success', 'Reservasi berhasil dikirim! Silahkan cek status pesanan Anda di sini.');
+        return redirect()->route('customer.history')->with('success', 'Reservasi berhasil dikirim!');
     }
 }
