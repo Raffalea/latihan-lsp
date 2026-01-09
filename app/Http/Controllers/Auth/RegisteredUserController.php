@@ -29,15 +29,19 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        // 1. Tambahkan validasi untuk 'phone'
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
+            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:' . User::class],
+            'phone' => ['required', 'string', 'max:20'], // Tambahkan ini
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
+        // 2. Masukkan 'phone' ke dalam pembuatan user
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
+            'phone' => $request->phone, // Tambahkan ini
             'password' => Hash::make($request->password),
         ]);
 
@@ -45,6 +49,7 @@ class RegisteredUserController extends Controller
 
         Auth::login($user);
 
-        return redirect(route('dashboard', absolute: false));
+        // 3. UBAH REDIRECT: Dari 'dashboard' ke 'katalog'
+        return redirect(route('katalog', absolute: false));
     }
 }

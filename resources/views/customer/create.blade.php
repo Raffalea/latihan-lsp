@@ -28,12 +28,20 @@
             filter: invert(1);
             opacity: 0.5;
         }
+        /* Menghilangkan panah default pada select */
+        select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            background-size: 1rem;
+        }
     </style>
 </head>
 
 <body class="bg-dark-950 text-white min-h-screen flex items-center justify-center p-6">
 
-<div class="max-w-5xl w-full grid grid-cols-1 lg:grid-cols-12 bg-dark-800 rounded-[3rem] overflow-hidden shadow-2xl border border-white/5">
+<div class="max-w-5xl w-full grid grid-cols-1 lg:grid-cols-12 bg-dark-800 rounded-[3rem] overflow-hidden shadow-2xl border border-white/5 my-10">
 
     <div class="lg:col-span-5 bg-dark-900 p-12 border-r border-white/5">
         <a href="{{ route('katalog') }}"
@@ -65,6 +73,10 @@
                 <span>Total Stay</span>
                 <span id="night-count">0 Nights</span>
             </div>
+            <div class="flex justify-between text-[10px] uppercase text-zinc-500 font-bold mb-4 border-b border-white/5 pb-2">
+                <span>Occupancy</span>
+                <span id="guest-preview">1 Guest</span>
+            </div>
             <div class="flex justify-between items-end">
                 <span class="text-[10px] uppercase text-zinc-500 font-bold">Total Price</span>
                 <span id="total-preview"
@@ -93,51 +105,48 @@
             @csrf
 
             <input type="hidden" name="room_id" value="{{ $room->id }}">
-            <input type="hidden" id="price_per_night" value="{{ $room->price_per_night }}">
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="md:col-span-2">
-                    <label class="block text-[10px] uppercase tracking-widest text-zinc-500 mb-2">
-                        Full Name
-                    </label>
-                    <input type="text" name="name" value="{{ Auth::user()->name ?? '' }}" required
-                           placeholder="Your full name"
+                    <label class="block text-[10px] uppercase tracking-widest text-zinc-500 mb-2">Full Name</label>
+                    <input type="text" name="name" value="{{ Auth::user()->name }}" required
                            class="w-full bg-dark-900 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-gold-500 transition">
                 </div>
 
                 <div>
-                    <label class="block text-[10px] uppercase tracking-widest text-zinc-500 mb-2">
-                        Email Address
-                    </label>
-                    <input type="email" name="email" value="{{ Auth::user()->email ?? '' }}" required
-                           placeholder="you@email.com"
+                    <label class="block text-[10px] uppercase tracking-widest text-zinc-500 mb-2">Email Address</label>
+                    <input type="email" name="email" value="{{ Auth::user()->email }}" required
                            class="w-full bg-dark-900 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-gold-500 transition">
                 </div>
 
                 <div>
-                    <label class="block text-[10px] uppercase tracking-widest text-zinc-500 mb-2">
-                        Phone Number
-                    </label>
-                    <input type="tel" name="phone" required
-                           placeholder="+62 8xxx xxxx"
+                    <label class="block text-[10px] uppercase tracking-widest text-zinc-500 mb-2">Phone Number</label>
+                    <input type="tel" name="phone" value="{{ Auth::user()->phone }}" required
                            class="w-full bg-dark-900 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-gold-500 transition">
+                </div>
+
+                <div class="md:col-span-2">
+                    <label class="block text-[10px] uppercase tracking-widest text-zinc-500 mb-2">Total Guests</label>
+                    <select name="total_guests" id="total_guests" required
+                            class="w-full bg-dark-900 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-gold-500 transition cursor-pointer">
+                        <option value="1">1 Person</option>
+                        <option value="2">2 Persons</option>
+                        <option value="3">3 Persons</option>
+                        <option value="4">4 Persons (Max)</option>
+                    </select>
                 </div>
             </div>
 
             <div class="grid grid-cols-2 gap-6">
                 <div>
-                    <label class="block text-[10px] uppercase tracking-widest text-zinc-500 mb-2">
-                        Check-In
-                    </label>
+                    <label class="block text-[10px] uppercase tracking-widest text-zinc-500 mb-2">Check-In</label>
                     <input type="date" name="check_in" id="check_in" required
                            min="{{ date('Y-m-d') }}"
                            class="w-full bg-dark-900 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-gold-500 transition">
                 </div>
 
                 <div>
-                    <label class="block text-[10px] uppercase tracking-widest text-zinc-500 mb-2">
-                        Check-Out
-                    </label>
+                    <label class="block text-[10px] uppercase tracking-widest text-zinc-500 mb-2">Check-Out</label>
                     <input type="date" name="check_out" id="check_out" required
                            min="{{ date('Y-m-d', strtotime('+1 day')) }}"
                            class="w-full bg-dark-900 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-gold-500 transition">
@@ -155,26 +164,30 @@
 <script>
     const checkIn = document.getElementById('check_in');
     const checkOut = document.getElementById('check_out');
+    const guestSelect = document.getElementById('total_guests');
+    const guestPreview = document.getElementById('guest-preview');
     const price = {{ $room->price_per_night }};
 
-    function updatePrice() {
-        // 1. Validasi: Tanggal check-out minimal H+1 dari check-in
+    function updateSummary() {
+        // 1. Update Preview Jumlah Tamu
+        const guests = guestSelect.value;
+        guestPreview.innerText = guests + (guests > 1 ? ' Guests' : ' Guest');
+
+        // 2. Validasi Tanggal Check-Out
         if (checkIn.value) {
             let selectedCheckIn = new Date(checkIn.value);
             let minCheckOut = new Date(selectedCheckIn);
             minCheckOut.setDate(minCheckOut.getDate() + 1);
 
-            // Format ke YYYY-MM-DD untuk atribut min
             const minStr = minCheckOut.toISOString().split("T")[0];
             checkOut.min = minStr;
 
-            // Jika check_out yang sudah dipilih ternyata lebih awal dari min baru, reset check_out
             if (checkOut.value && checkOut.value < minStr) {
                 checkOut.value = minStr;
             }
         }
 
-        // 2. Hitung Durasi & Total Harga
+        // 3. Hitung Durasi & Total Harga
         if (checkIn.value && checkOut.value) {
             const start = new Date(checkIn.value);
             const end = new Date(checkOut.value);
@@ -193,8 +206,13 @@
         }
     }
 
-    checkIn.addEventListener('change', updatePrice);
-    checkOut.addEventListener('change', updatePrice);
+    // Jalankan fungsi setiap kali ada perubahan input
+    checkIn.addEventListener('change', updateSummary);
+    checkOut.addEventListener('change', updateSummary);
+    guestSelect.addEventListener('change', updateSummary);
+
+    // Jalankan sekali saat halaman dimuat untuk inisialisasi occupancy
+    window.onload = updateSummary;
 </script>
 
 </body>
